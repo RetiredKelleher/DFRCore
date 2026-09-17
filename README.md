@@ -48,3 +48,6 @@ TODO...
 This project supports two personal projects of mine (as a newly retired ModSim supporter).  The first is to provide a sharable set of base capabilities that will support my personal simulation project.  The project that I'm designing and scoping is an entity based force-on-force simulation that supports multiple levels of both fidelity and resolution.  Useful features will be refactored and migrated into this package.
 
 The second effort of this project is to enable learning new development tools, processes, and deployment concepts. While the concepts of developing software are well known, the tools and processes that I used for the last 30 years are outdated and very manual.  This package is my attempt to "sharpen my saw".
+
+LLMs are used (Claude) as my code reviewer to find and suggest improvements.  It also helps learning how best to use a LLM for code inspection and evaluation.  This is attempting to cover for the code team and code reviews that I've done in the past.
+
