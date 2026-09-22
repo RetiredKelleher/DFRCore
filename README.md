@@ -31,18 +31,23 @@ Create a list of future or currently broken items that needs to be addressed.
 
 ## How to Install / Build / Etc
 
-TBD....
-    1. "git clone --branch trunk https://github.com/RetiredKelleher/DFRCore.git"
+To download the software package, here are the steps.
+
+    1. git clone https://github.com/RetiredKelleher/DFRCore.git
     2. cd DFRCore
     3. mkdir build
 
     cmake -DCMAKE_BUILD_TYPE:STRING=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++ -Wno-unused-cli -S . -B build -G "Unix Makefiles"
 
-build all the sources
-cmake --build build --config Debug --target all
+Use this command to build all the sources
 
-clean all the build
-cmake --build build --config Debug --target clean
+    1. cmake --build build --config Debug --target all
+
+Use this command to clean all
+
+    1. cmake --build build --config Debug --target clean
+
+NOTE: I'm still determining if all the config, build and clean commands require the DEBUG flag.
 
 ### Package Installation
 
