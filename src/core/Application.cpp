@@ -8,7 +8,7 @@
 #include <DFRCore/Application.hpp>
 #include <DFRCore/Logger.hpp>
 #include <DFRCore/RandomNumber.hpp>
-#include "PriorityQueueEventManager.hpp"
+#include <DFRCore/EventManager.hpp>
 #include <DFRCore/SimEngine.hpp>
 #include <iostream>
 
@@ -51,8 +51,7 @@ void Application::initialize()
     mRandomNumberGenerator = createRandomNumberGenerator();
 
     // Create the simulation engine 
-    std::unique_ptr<DFR::EventManager> eventManager = std::make_unique<DFR::PriorityQueueEventManager>();
-
+    std::unique_ptr<DFR::EventManager> eventManager = DFR::EventManager::createPriorityBasedEventManager();
     mSimEngine = new DFR::SimEngine(std::move(eventManager), mIsInBatchMode);
 }
 

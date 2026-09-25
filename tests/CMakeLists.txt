@@ -13,3 +13,10 @@ add_test(NAME test_DFRApplication COMMAND test_DFRApplication)
 
 
 
+
+# -----------------------------------------------------------------------------
+# EventManager Test
+# -----------------------------------------------------------------------------
+add_executable(test_EventManager testEventManager.cpp sharedTest_EventManager.cpp)
+target_link_libraries(test_EventManager PRIVATE DFRCore)
+add_test(NAME test_EventManager COMMAND test_EventManager)

@@ -16,57 +16,56 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////
 /// @brief Creates a one-time event that executes a simple action at a specified simulation time and priority.
-/// @param engine A pointer to the simulation engine to which the event will be added. 
-/// @param simTime The simulation time at which the event will be executed.
-/// @param priority The priority of the event.
+/// @param[in] engine A pointer to the simulation engine to which the event will be added. 
+/// @param[in] simTime The simulation time at which the event will be executed.
 ////////////////////////////////////////////////////////////////////////////////////////
 void createOneTimeEvent(DFR::SimEngine* engine, double simTime, int priority)
 {
     auto oneTimeEventFn = [](DFR::Event& event) {
-        std::cout << "One-time event executed at simulation time: " << event.simTime() << std::endl;
+        std::cout << "One-time event executed at simulation time: " << event.simTimeOfEvent() << std::endl;
     };
     std::function<void(DFR::Event&)> oneTimeEventExeFn = oneTimeEventFn;
     std::unique_ptr<DFR::Event> oneTimeEvent = std::make_unique<DFR::OneShotEvent>(simTime, priority, oneTimeEventExeFn);
-    engine->addEvent(std::move(oneTimeEvent), priority);
+    engine->addEvent(std::move(oneTimeEvent));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 /// @brief Creates a one-time event that executes a simple action at a specified simulation time and priority.
-/// @param engine A pointer to the simulation engine to which the event will be added. 
-/// @param simTime The simulation time at which the event will be executed.
-/// @param priority The priority of the event.
+/// @param[in] engine A pointer to the simulation engine to which the event will be added. 
+/// @param[in] simTime The simulation time at which the event will be executed.
+/// @param[in] priority The priority of the event.
 ////////////////////////////////////////////////////////////////////////////////////////
 void createOneTimeStopEvent(DFR::SimEngine* engine, double simTime, int priority)
 {
     auto oneTimeEventFn = [engine](DFR::Event& event) {
-        std::cout << "One-time stop event executed at simulation time: " << event.simTime() << std::endl;
+        std::cout << "One-time stop event executed at simulation time: " << event.simTimeOfEvent() << std::endl;
         engine->stopExecution();
     };
     std::function<void(DFR::Event&)> oneTimeEventExeFn = oneTimeEventFn;
     std::unique_ptr<DFR::Event> oneTimeEvent = std::make_unique<DFR::OneShotEvent>(simTime, priority, oneTimeEventExeFn);
-    engine->addEvent(std::move(oneTimeEvent), priority);
+    engine->addEvent(std::move(oneTimeEvent));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 /// @brief Creates a repeating event that executes a simple action at specified simulation times and priority, and reschedules itself for future execution.
-/// @param engine A pointer to the simulation engine to which the event will be added. 
-/// @param simTime The initial simulation time at which the event will be executed.
-/// @param priority The priority of the event.
-/// @param incrementTime The time increment for rescheduling the event for future execution.
-/// @param eventID An optional identifier for the event, which can be used for tracking or categorization purposes.
+/// @param[in] engine A pointer to the simulation engine to which the event will be added. 
+/// @param[in] simTime The initial simulation time at which the event will be executed.
+/// @param[in] priority The priority of the event.
+/// @param[in] incrementTime The time increment for rescheduling the event for future execution.
+/// @param[in] eventID An optional identifier for the event, which can be used for tracking or categorization purposes.
 ////////////////////////////////////////////////////////////////////////////////////////
 void createRepeatingEvent(DFR::SimEngine* engine, double simTime, int priority, double incrementTime,
 const int eventID = 0)
 {
     auto repeatingEventFn = [incrementTime](DFR::Event& event) {
-        std::cout << "Repeating event executed at simulation time: " << event.simTime() << std::endl;
-        event.updateSimTime(event.simTime() + incrementTime); // Reschedule the event for a future time
+        std::cout << "Repeating event executed at simulation time: " << event.simTimeOfEvent() << std::endl;
+        event.updateSimTime(event.simTimeOfEvent() + incrementTime); // Reschedule the event for a future time
         return DFR::Event::EventStatus::eReschedule; // Indicate that the event should be rescheduled
     };
     std::function<DFR::Event::EventStatus(DFR::Event&)> repeatingEventExeFn = repeatingEventFn;
     std::unique_ptr<DFR::Event> repeatingEvent = std::make_unique<DFR::RepeatingEvent>(simTime, priority, repeatingEventExeFn);
     repeatingEvent->setEventID(eventID);
-    engine->addEvent(std::move(repeatingEvent), priority);
+    engine->addEvent(std::move(repeatingEvent));
 }
 
 // ===========================================================================

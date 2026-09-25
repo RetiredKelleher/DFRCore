@@ -19,44 +19,53 @@
 
 namespace DFR {
 
-//! @brief The DFR::EventManager class is responsible for managing events in the DFRSimArch framework. It provides methods for adding, peeking, retrieving, and removing events based on their simulation time and priority. The EventManager maintains a priority queue of events and ensures thread-safe access to the event queue using a recursive mutex. This class is designed to be used by the SimEngine to manage the execution of events in the simulation loop.
+//! @brief Implements the PriorityQueue-based event manager. The implementation
+//! uses a priority queue to manage simulation events efficiently.
+//! @note The EventManager is designed to be used by the SimEngine to manage 
+//! the execution of events in the simulation loop.
 class PriorityQueueEventManager : public EventManager
 {
 public:
     PriorityQueueEventManager() = default;
-    ~PriorityQueueEventManager() = default;
+    ~PriorityQueueEventManager() override = default;
 
-    // Add event handling methods here
-    //! Adds an event to the event manager with the specified priority.
-    //! @param event The event to be added to the event manager.
-    //! @param priority The priority of the event. Higher priority events will be executed before lower priority events.
-    //! @return The unique event counter for the added event.
-    unsigned int addEvent(std::unique_ptr<DFR::Event> event, const int priority);
+    //! @brief Adds an event to the event manager.
+    //! @param[in] event The event to be added to the event manager.
+    //! @return The unique event counter for the added event. Used to track the event.  
+    virtual unsigned int addEvent(std::unique_ptr<DFR::Event> event) override;
+
+    //! @brief Requeues an event to be added back to the event manager. This is used when an event's Execute function returns eReschedule, indicating that the event should be rescheduled for future execution.
+    //! @param[in] event The event to be requeued.
+    //! @note Assumes event has adjusted the next simulation time before being requeued.  Also the event counter remains the same.
+    void requeueEvent(std::unique_ptr<DFR::Event> event) override;
+
+    //! @brief Gets the next event from the event manager if its simulation time is at or before the specified maximum simulation time.
+    //! @param[in] maxSimTime The maximum simulation time for the next event to be retrieved.
+    //! @param[out] queWasEmpty Indicates whether the event queue was empty at the time of the call
+    //! @note Combines both peekNextEvent and getNextEvent into thread-safe operation.
+    //! @return A unique pointer to the next event if its simulation time is at or before maxSimTime, or nullptr otherwise.
+    std::unique_ptr<DFR::Event> getNextEventAtOrBefore(double maxSimTime, bool& queWasEmpty) override;
 
     //! @brief Peeks at the next event in the event manager without removing it.
     //! @return A pointer to the next event in the event manager, or nullptr if there are no events.
-    DFR::Event* peekNextEvent();
+    const DFR::Event* peekNextEvent() override;
 
     //! @brief Gets the next event from the event manager and removes it from the event manager.
     //! @return A unique pointer to the next event in the event manager, or nullptr if there are no events.
-    std::unique_ptr<DFR::Event> getNextEvent();
+    std::unique_ptr<DFR::Event> getNextEvent() override;
 
     //! Clears all events from the event manager.
     //! @brief Clears all events from the event manager.
-    void clearEvents();
+    void clearEvents() override;
 
     //! @brief Removes a specific event from the event manager based on its unique event counter.
     //! @param eventCounter The unique event counter of the event to be removed.
     //! @return True if the event was found and removed, false otherwise.
-    bool removeEvent(unsigned int eventCounter);
+    bool removeEvent(unsigned int eventCounter) override;
 
 protected:
 
 private:
-
-    //! @brief Requeues an event to be added back to the event manager. This is used when an event's Execute function returns eReschedule, indicating that the event should be rescheduled for future execution.
-    //! @param event The event to be requeued.
-    void requeueEvent(std::unique_ptr<DFR::Event> event);
 
     using EventQueue = std::priority_queue<DFR::EventManager::EventLocal,
      std::vector<DFR::EventManager::EventLocal>,

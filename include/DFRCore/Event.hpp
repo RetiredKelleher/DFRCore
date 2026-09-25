@@ -48,9 +48,12 @@ public:
     {
     }
 
-    //! @brief Get the simulation time at which the event is scheduled to execute.
-    //! @return The simulation time for this event.
-    double simTime() const { return mSimTime; }
+    //! @brief Default destructor for the Event class.
+    virtual ~Event() = default;
+
+    //! @brief Get the simulation time of the event.
+    //! @return The simulation time at which the event is scheduled to execute.
+    double simTimeOfEvent() const { return mSimTime; }
 
     //! @brief Get the priority of the event. Events use an "Inverted Score" to determine execution order. Lower values are executed first, while higher values are executed later. This allows for a flexible scheduling system where events can be prioritized based on their importance or urgency.
     //! @return The priority level of this event.
@@ -119,12 +122,12 @@ protected:
     //! @param[in] simtime The simulation time at which the event is scheduled to execute. Default is 0.0.
     //! @param[in] priority The priority of the event, where lower values indicate higher priority (Inverted Score).
     //! @param[in] exeFn A reference to a function that defines the execution logic for this event. The function should match the signature defined by the template parameters RT and Args.
-    EventT(double simtime,int priority, ExeFN& exeFn) :
+    EventT(double simtime,int priority, const ExeFN& exeFn) :
         Event(simtime, priority),
         mExeFn(exeFn)
         {}
 
-        ExeFN mExeFn;
+        const ExeFN mExeFn;
 };
 
 
@@ -144,7 +147,7 @@ public:
     //! @param[in] simtime The simulation time at which the event is scheduled to execute. Default is 0.0.
     //! @param[in] priority The priority of the event, where lower values indicate higher priority (Inverted Score).
     //! @param[in] exeFn A reference to a function that defines the execution logic for this event. The function should match the signature defined by the template parameters RT and Args.
-    OneShotEvent(double simtime, int priority, ExeFN& exeFn) :
+    OneShotEvent(double simtime, int priority, const ExeFN& exeFn) :
         EventT<void, Event&>(simtime, priority, exeFn)
         {}
 
@@ -169,7 +172,7 @@ public:
     //! @param[in] simtime The simulation time at which the event is scheduled to execute. Default is 0.0.
     //! @param[in] priority The priority of the event, where lower values indicate higher priority (Inverted Score).
     //! @param[in] exeFn A reference to a function that defines the execution logic for this event. The function should match the signature defined by the template parameters RT and Args.
-    RepeatingEvent(double simtime, int priority, ExeFN& exeFn) :
+    RepeatingEvent(double simtime, int priority, const ExeFN& exeFn) :
         EventT<Event::EventStatus, Event&>(simtime, priority, exeFn)
         {}
 

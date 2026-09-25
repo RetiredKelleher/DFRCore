@@ -73,13 +73,14 @@ void SimEngine::processEventsUpTo(double maxSimTime)
     // Keep processing until a break-condition exists
     while (true)
     {
-        // PEEK at the next event
-        DFR::Event* peekEvent = mSimEventManager->peekNextEvent();
+        // Get the next event to be processed
+        bool queWasEmpty = false;
+        std::unique_ptr<DFR::Event> nextEvent = mSimEventManager->getNextEventAtOrBefore(maxSimTime, queWasEmpty);
 
         ////////////////////////////////////////
         // Case 1: event queue is empty, if so then quit
         ////////////////////////////////////////
-        if (!peekEvent)
+        if (queWasEmpty)
         {
             stopExecution(); // Queue exhausted — signal the loop to stop.
             break;
@@ -89,7 +90,7 @@ void SimEngine::processEventsUpTo(double maxSimTime)
         // Case 2: Next event lies beyond what the clock allows this tick.
         // NOTE: This would occur when using the Real-Time clock
         ////////////////////////////////////////
-        if (peekEvent->simTime() > maxSimTime)
+        if (!queWasEmpty && nextEvent == nullptr)
         {
             mSimClock->setCurrentTime(maxSimTime);  // Advance clock to max allowed time.
             break;
@@ -98,24 +99,19 @@ void SimEngine::processEventsUpTo(double maxSimTime)
         ////////////////////////////////////////
         // Case 3: Process the NEXT event
         ////////////////////////////////////////
-        std::unique_ptr<DFR::Event> event = mSimEventManager->getNextEvent();
+        std::cout << "V2: Processing Event with priority: " << nextEvent->priority()
+                << ", eventCounter: " << nextEvent->eventCounter()
+                << ", EventID: " << nextEvent->getEventID() << std::endl;
 
-        std::cout << "V2: Processing Event with priority: " << event->priority()
-                << ", eventCounter: " << event->eventCounter()
-                << ", EventID: " << event->getEventID() << std::endl;
-
-        DFR::Event::EventStatus status = event->Execute();
         // Update the clock for any events in the list
-        lastEventTime = event->simTime();
+        lastEventTime = nextEvent->simTimeOfEvent();
         mSimClock->setCurrentTime(lastEventTime);
+        DFR::Event::EventStatus status = nextEvent->Execute();
+
         if (status == DFR::Event::EventStatus::eReschedule)
         {
-            int pri = event->priority();
-            mSimEventManager->addEvent(std::move(event), pri);
+            mSimEventManager->requeueEvent(std::move(nextEvent));
         }
-
-        // Update the clock state to the last event time
-        mSimClock->setCurrentTime(lastEventTime);
 
         ////////////////////////////////////////
         // Case 4: Event has told simulation to STOP
@@ -135,10 +131,9 @@ void SimEngine::updateSimulationState()
 
 //! @brief Adds an event to the simulation engine with the specified priority.
 //! @param[in] event The event to be added to the simulation engine.
-//! @param[in] priority The priority of the event.
-void SimEngine::addEvent(std::unique_ptr<DFR::Event> event, const int priority)
+void SimEngine::addEvent(std::unique_ptr<DFR::Event> event)
 {
-    mSimEventManager->addEvent(std::move(event), priority);
+    mSimEventManager->addEvent(std::move(event));
 }
 
 void SimEngine::registerPoller(std::unique_ptr<ICommPoller> poller)

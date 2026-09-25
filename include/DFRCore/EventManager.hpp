@@ -30,15 +30,26 @@ public:
     EventManager();
     virtual ~EventManager() = default;
 
-    //! @brief Adds an event to the event manager with the specified priority.
+    //! @brief Adds an event to the event manager.
     //! @param[in] event The event to be added to the event manager.
-    //! @param[in] priority The priority of the event. Higher priority events will be executed before lower priority events.
-    //! @return The unique event counter for the added event.
-    virtual unsigned int addEvent(std::unique_ptr<DFR::Event> event, const int priority) = 0;
+    //! @return The unique event counter for the added event. Used to track the event.  
+    virtual unsigned int addEvent(std::unique_ptr<DFR::Event> event) = 0;
+
+    //! @brief Requeues an event to be added back to the event manager. This is used when an event's Execute function returns eReschedule, indicating that the event should be rescheduled for future execution.
+    //! @param[in] event The event to be requeued.
+    //! @note Assumes event has adjusted the next simulation time before being requeued.  Also the event counter remains the same.
+    virtual void requeueEvent(std::unique_ptr<DFR::Event> event) = 0;
+
+    //! @brief Gets the next event from the event manager if its simulation time is at or before the specified maximum simulation time.
+    //! @param[in] maxSimTime The maximum simulation time for the next event to be retrieved.
+    //! @param[out] queWasEmpty Indicates whether the event queue was empty at the time of the call
+    //! @note Combines both peekNextEvent and getNextEvent into thread-safe operation.
+    //! @return A unique pointer to the next event if its simulation time is at or before maxSimTime, or nullptr otherwise.
+    virtual std::unique_ptr<DFR::Event> getNextEventAtOrBefore(double maxSimTime, bool& queWasEmpty) = 0;
 
     //! @brief Peeks at the next event in the event manager without removing it.
     //! @return A pointer to the next event in the event manager, or nullptr if there are no events.
-    virtual DFR::Event* peekNextEvent() = 0;
+    virtual const DFR::Event* peekNextEvent() = 0;
 
     //! @brief Gets the next event from the event manager and removes it from the event manager.
     //! @return A unique pointer to the next event in the event manager, or nullptr if there are no events.
@@ -53,6 +64,12 @@ public:
     //! @return True if the event was found and removed, false otherwise.
     virtual bool removeEvent(unsigned int eventCounter) = 0;
 
+    /** @name Supported Event Manager Implementations */
+    //@{
+    //! @brief Implementation of a Priority-based Event Manager.
+    static std::unique_ptr<EventManager> createPriorityBasedEventManager();
+    //@}
+    
 protected:
 
     //! Mutex to protect access to the event queue
@@ -67,7 +84,7 @@ protected:
 
         //! Constructor to create an EventLocal from an Event and its key components
         EventLocal(std::unique_ptr<DFR::Event> event, unsigned int eventCounter)
-             : mKey(std::make_tuple(event->simTime(), event->priority(), eventCounter)),
+             : mKey(std::make_tuple(event->simTimeOfEvent(), event->priority(), eventCounter)),
                mEventPtr(std::move(event))
             {}
 
