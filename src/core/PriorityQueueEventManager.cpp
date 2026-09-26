@@ -17,25 +17,35 @@ unsigned int PriorityQueueEventManager::addEvent(std::unique_ptr<DFR::Event> eve
         return 0; // or some invalid event counter value
     }
 
+    // Initialize the event counter with the base ID
+    event->setEventID(mEventIDBase++);
+
     // Assign a unique event counter to the event and push it into the priority queue
     unsigned int eventCounter = mEventCounter++;
     event->setEventCounter(eventCounter);
     mEventQueue.push(DFR::EventManager::EventLocal(std::move(event), eventCounter));
-    return eventCounter;
+    // Return the updated EventID (event counter) for the newly added event
+    return mEventIDBase - 1;
 }
 
 //! @brief Requeues an event to be added back to the event manager. This is used when an event's Execute function returns eReschedule, indicating that the event should be rescheduled for future execution.
 //! @param[in] event The event to be requeued.
 //! @note Assumes event has adjusted the next simulation time before being requeued.  Also the event Counter remains the same.
-void PriorityQueueEventManager::requeueEvent(std::unique_ptr<DFR::Event> event)
+bool PriorityQueueEventManager::requeueEvent(std::unique_ptr<DFR::Event> event)
 {
     std::lock_guard<std::recursive_mutex> lock(mEventMutex);
     // Ensure we have a valid event before requeuing it
     if (event)
     {
-        unsigned int eventCounter = event->eventCounter();
+        // Assign a unique event counter to the event and push it into the priority queue
+        // NOTE: The eventID remains the same when requeuing, only the event counter is updated.
+        unsigned int eventCounter = mEventCounter++;
+        event->setEventCounter(eventCounter);
         mEventQueue.push(EventManager::EventLocal(std::move(event), eventCounter));
+        return true;
     }
+    // Failed to requeue the event because it was null
+    return false;
 }
 
 //! @brief Gets the next event from the event manager if its simulation time is at or before the specified maximum simulation time.
@@ -100,7 +110,10 @@ void PriorityQueueEventManager::clearEvents()
     }
 }
 
-bool PriorityQueueEventManager::removeEvent(unsigned int eventCounter)
+//! @note The removal of an event involves temporarily extracting all events from the priority queue,
+//! checking their event IDs, and requeuing the events that are not removed. This ensures that the
+//! priority queue maintains its ordering properties after the removal operation.  This is VERY slow.
+bool PriorityQueueEventManager::removeEvent(unsigned int eventID)
 {
     std::lock_guard<std::recursive_mutex> lock(mEventMutex);
     std::vector<std::unique_ptr<DFR::Event>> tempEvents;
@@ -112,8 +125,8 @@ bool PriorityQueueEventManager::removeEvent(unsigned int eventCounter)
         auto topEvent = std::move(mEventQueue.top().mEventPtr);
         mEventQueue.pop();
 
-        // Check if the event counter matches the one we want to remove
-        if (topEvent->eventCounter() == eventCounter)
+        // Check if the event ID matches the one we want to remove
+        if (topEvent->getEventID() == eventID)
         {
             found = true; // Found the event to remove
             break; // Exit the loop after finding the event

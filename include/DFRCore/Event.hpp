@@ -69,8 +69,13 @@ public:
 
     //! @brief Update the simulation time for this event. This method can be used by the EventManager to update the event's scheduled time when rescheduling is needed.
     //! @param[in] newSimTime The new simulation time to be assigned to the event.
+    //! @note This does not automatically requeue the event in the EventManager; it only updates the internal simulation time of the event.
     void updateSimTime(double newSimTime) { mSimTime = newSimTime; }
     
+    //! @brief Update the Priority of the event. This method can be used by the EventManager or other components to change the priority of the event when rescheduling is needed.
+    //! @param[in] newPriority The new priority level to be assigned to the event.
+    //! @note This does not automatically requeue the event in the EventManager; it only updates the internal priority of the event.
+    void setPriority(int newPriority) { mPriority = newPriority; }
     //! @brief Set the EventID for this event.
     //! @param[in] eventID The unique identifier to be assigned to this event. This can be used for additional identification or categorization of events, separate from the unique event counter assigned by the EventManager. The EventID is a unique ID that can be used to identify or categorize events in the simulation, and is separate from the eventCounter which is a unique identifier assigned by the EventManager for scheduling purposes. The EventID can be set by the user or by the EventManager when the event is created, and can be used for tracking, diagnostics, or other purposes within the simulation.
     void setEventID(unsigned int eventID) { mEventID = eventID; }

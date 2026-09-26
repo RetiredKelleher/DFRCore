@@ -30,6 +30,12 @@ void testClearEvents();
 void testRemoveEvent();
 void testRemoveEventPreservesDerivedEvents();
 
+// test the requeue functionality of the EventManager
+void testRequeueNullEvent();
+void testRequeueOrderingBySimTime();
+void testRequeueOrderingByPriorityAtSameTime();
+void testRequeueFifoTieBreakAtSameTimeAndPriority();
+
 
 // Test getNextEventAtOrBefore usage
 void testGetNextEventAtOrBeforeEmptyQueue();

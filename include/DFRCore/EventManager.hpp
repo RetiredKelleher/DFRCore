@@ -38,7 +38,8 @@ public:
     //! @brief Requeues an event to be added back to the event manager. This is used when an event's Execute function returns eReschedule, indicating that the event should be rescheduled for future execution.
     //! @param[in] event The event to be requeued.
     //! @note Assumes event has adjusted the next simulation time before being requeued.  Also the event counter remains the same.
-    virtual void requeueEvent(std::unique_ptr<DFR::Event> event) = 0;
+    //! @return True if the event was successfully requeued, false otherwise.
+    virtual bool requeueEvent(std::unique_ptr<DFR::Event> event) = 0;
 
     //! @brief Gets the next event from the event manager if its simulation time is at or before the specified maximum simulation time.
     //! @param[in] maxSimTime The maximum simulation time for the next event to be retrieved.
@@ -59,10 +60,10 @@ public:
     //! @brief Clears all events from the event manager.
     virtual void clearEvents() = 0;
 
-    //! @brief Removes a specific event from the event manager based on its unique event counter.
-    //! @param[in] eventCounter The unique event counter of the event to be removed.
+    //! @brief Removes a specific event from the event manager based on its unique event ID.
+    //! @param[in] eventID The unique event ID of the event to be removed.
     //! @return True if the event was found and removed, false otherwise.
-    virtual bool removeEvent(unsigned int eventCounter) = 0;
+    virtual bool removeEvent(unsigned int eventID) = 0;
 
     /** @name Supported Event Manager Implementations */
     //@{
@@ -99,6 +100,7 @@ protected:
     };
 
     unsigned int mEventCounter{1}; //!< To ensure unique keys for events with same simTime and priority 
+    unsigned int mEventIDBase{1}; //!< Base ID for events, used to generate unique event counters
 
 private:
 

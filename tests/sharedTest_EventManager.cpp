@@ -37,6 +37,13 @@ void runAllTests()
     testClearEvents();
     testRemoveEvent();
     testRemoveEventPreservesDerivedEvents();
+    // test requeueEvent functionality would go here if implemented
+    testRequeueNullEvent();
+    testRequeueOrderingBySimTime();
+    testRequeueOrderingByPriorityAtSameTime();
+    testRequeueFifoTieBreakAtSameTimeAndPriority();
+
+    // test GetNextEventAtOrBefore functionality
     testGetNextEventAtOrBeforeEmptyQueue();
     testGetNextEventAtOrBeforeReturnsEarlierEvent();
     testGetNextEventAtOrBeforeHoldsBackLaterEvent();
@@ -152,8 +159,8 @@ void testRemoveEvent()
     CHECK(em->removeEvent(9999) == false); // never existed
 
     // Remaining events keep their order and counters.
-    CHECK(em->getNextEvent()->eventCounter() == c1);
-    CHECK(em->getNextEvent()->eventCounter() == c3);
+    CHECK(em->getNextEvent()->getEventID() == c1);
+    CHECK(em->getNextEvent()->getEventID() == c3);
     CHECK(em->getNextEvent() == nullptr);
 }
 
@@ -180,6 +187,78 @@ void testRemoveEventPreservesDerivedEvents()
     CHECK(calls == 1);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Test requeue functionality of the EventManager
+////////////////////////////////////////////////////////////////////////////////
+
+void testRequeueNullEvent()
+{
+    std::cout << DFR::gEventManagerName << ": Test Requeue Null Event" << std::endl;
+    auto em = makeManager();
+    CHECK(em->requeueEvent(nullptr) == false);
+}
+void testRequeueOrderingBySimTime()
+{
+    std::cout << DFR::gEventManagerName << ": Test Requeue Ordering By Sim Time" << std::endl;
+    auto em = makeManager();
+    unsigned int c1 = em->addEvent(std::make_unique<DFR::Event>(1.0));
+    unsigned int c2 = em->addEvent(std::make_unique<DFR::Event>(2.0));
+
+    auto e = em->getNextEvent();
+    CHECK(e != nullptr);
+    if (e)
+    {
+        e->updateSimTime(3.0);
+        CHECK(em->requeueEvent(std::move(e)) == true);
+    }
+
+    CHECK(em->getNextEvent()->getEventID() == c2);
+    CHECK(em->getNextEvent()->getEventID() == c1);
+    CHECK(em->getNextEvent() == nullptr);
+}
+void testRequeueOrderingByPriorityAtSameTime()
+{
+    std::cout << DFR::gEventManagerName << ": Test Requeue Ordering By Priority At Same Time" << std::endl;
+    auto em = makeManager();
+    unsigned int c1 = em->addEvent(std::make_unique<DFR::Event>(1.0, 10));
+    unsigned int c2 = em->addEvent(std::make_unique<DFR::Event>(1.0, 20));
+
+    auto e = em->getNextEvent();
+    CHECK(e != nullptr);
+    if (e)
+    {
+        e->setPriority(30);
+        CHECK(em->requeueEvent(std::move(e)) == true);
+    }
+
+    CHECK(em->getNextEvent()->getEventID() == c2);
+    CHECK(em->getNextEvent()->getEventID() == c1);
+    CHECK(em->getNextEvent() == nullptr);
+}
+
+void testRequeueFifoTieBreakAtSameTimeAndPriority()
+{
+    std::cout << DFR::gEventManagerName << ": Test Requeue FIFO Tie Break At Same Time And Priority" << std::endl;
+    auto em = makeManager();
+    unsigned int c1 = em->addEvent(std::make_unique<DFR::Event>(1.0, 10));
+    unsigned int c2 = em->addEvent(std::make_unique<DFR::Event>(1.0, 10));
+
+    auto e = em->getNextEvent();
+    CHECK(e != nullptr);
+    if (e)
+    {
+        CHECK(em->requeueEvent(std::move(e)) == true);
+    }
+
+    CHECK(em->getNextEvent()->getEventID() == c2);
+    CHECK(em->getNextEvent()->getEventID() == c1);
+    CHECK(em->getNextEvent() == nullptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Test getNextEventAtOrBefore usage
+////////////////////////////////////////////////////////////////////////////////
+
 void testGetNextEventAtOrBeforeEmptyQueue()
 {
     std::cout << DFR::gEventManagerName << ": Test Get Next Event At Or Before Empty Queue" << std::endl;
@@ -200,7 +279,7 @@ void testGetNextEventAtOrBeforeReturnsEarlierEvent()
     auto e = em->getNextEventAtOrBefore(10.0, queWasEmpty);
     CHECK(queWasEmpty == false);
     CHECK(e != nullptr);
-    CHECK(e && e->eventCounter() == c1);
+    CHECK(e && e->getEventID() == c1);
 
     // The returned event was removed; the later one is still queued.
     const DFR::Event* next = em->peekNextEvent();

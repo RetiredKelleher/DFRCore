@@ -37,7 +37,8 @@ public:
     //! @brief Requeues an event to be added back to the event manager. This is used when an event's Execute function returns eReschedule, indicating that the event should be rescheduled for future execution.
     //! @param[in] event The event to be requeued.
     //! @note Assumes event has adjusted the next simulation time before being requeued.  Also the event counter remains the same.
-    void requeueEvent(std::unique_ptr<DFR::Event> event) override;
+    //! @return True if the event was successfully requeued, false otherwise.
+    bool requeueEvent(std::unique_ptr<DFR::Event> event) override;
 
     //! @brief Gets the next event from the event manager if its simulation time is at or before the specified maximum simulation time.
     //! @param[in] maxSimTime The maximum simulation time for the next event to be retrieved.
@@ -58,10 +59,10 @@ public:
     //! @brief Clears all events from the event manager.
     void clearEvents() override;
 
-    //! @brief Removes a specific event from the event manager based on its unique event counter.
-    //! @param eventCounter The unique event counter of the event to be removed.
+    //! @brief Removes a specific event from the event manager based on its unique event ID.
+    //! @param eventID The unique event ID of the event to be removed.
     //! @return True if the event was found and removed, false otherwise.
-    bool removeEvent(unsigned int eventCounter) override;
+    bool removeEvent(unsigned int eventID) override;
 
 protected:
 
