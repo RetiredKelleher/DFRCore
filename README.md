@@ -4,7 +4,9 @@ DFRCore is designed to be a discrete simulation event (DES) environment that sup
 
 Its envisioned use-case is supporting a large entity (lifeforms, vehicles) count simulation while enabling dynamic modeling fidelity and greater optimization thur the use of multi-resolution modeling.  It should also support execution in either batch-mode (as fast as possible, true DES mode) or in a real-time federation with inputs injected from external sources (such as a DIS or HLA real-time federation).
 
-The process of extending the framework is planned to be a refactoring of another effort and distilling the useful parts into this package.  
+The process of extending the framework is planned to be a refactoring of another effort and distilling the useful parts into this package.
+
+Current version of the code base in development is V0.0.1 and will be branched once all the base bugs are resolved.
 
 - Package Includes
     1. Application object and supporting logger
