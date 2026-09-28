@@ -41,8 +41,9 @@ public:
     //@{
     //! @brief Adds an event to the simulation engine's event manager with the specified priority.
     //! @param[in] event The event to be added to the simulation engine's event manager.
+    //! @return The ID of the added event, or 0 if the event could not be added.
     //! @note The priority of the event is managed internally by the event manager.
-    void addEvent(std::unique_ptr<DFR::Event> event);
+    unsigned int addEvent(std::unique_ptr<DFR::Event> event);
     //@}
 
     /** @name Communication Polling

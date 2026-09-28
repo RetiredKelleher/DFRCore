@@ -99,9 +99,11 @@ void SimEngine::processEventsUpTo(double maxSimTime)
         ////////////////////////////////////////
         // Case 3: Process the NEXT event
         ////////////////////////////////////////
+#if 0        
         std::cout << "V2: Processing Event with priority: " << nextEvent->priority()
                 << ", eventCounter: " << nextEvent->eventCounter()
                 << ", EventID: " << nextEvent->getEventID() << std::endl;
+#endif
 
         // Update the clock for any events in the list
         lastEventTime = nextEvent->simTimeOfEvent();
@@ -131,9 +133,9 @@ void SimEngine::updateSimulationState()
 
 //! @brief Adds an event to the simulation engine with the specified priority.
 //! @param[in] event The event to be added to the simulation engine.
-void SimEngine::addEvent(std::unique_ptr<DFR::Event> event)
+unsigned int SimEngine::addEvent(std::unique_ptr<DFR::Event> event)
 {
-    mSimEventManager->addEvent(std::move(event));
+    return mSimEventManager->addEvent(std::move(event));
 }
 
 void SimEngine::registerPoller(std::unique_ptr<ICommPoller> poller)
