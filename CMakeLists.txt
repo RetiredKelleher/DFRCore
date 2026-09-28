@@ -61,6 +61,7 @@ install(DIRECTORY include/
 
 ## Build the examples for testing
 add_subdirectory(src/examples/simpleRealTimeEvents)
+add_subdirectory(src/examples/simpleHospitalSim)
 
 #########
 # Step 2: Export Targets and Create Config Files
