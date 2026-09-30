@@ -37,6 +37,10 @@ public:
     //! @brief Signals the engine to stop after the current iteration completes.
     void stopExecution() { mStopExecution = true; }
 
+    //! @brief Return the current simulation time.
+    //! @return The current simulation time as maintained by the simulation clock.
+    double getCurrentSimTime() const;
+    
     /** @name Events */
     //@{
     //! @brief Adds an event to the simulation engine's event manager with the specified priority.
