@@ -7,6 +7,7 @@ include_directories(${CMAKE_PROJECT_INCLUDE}/include)
 # -----------------------------------------------------------------------------
 # DFRApplication Test
 # -----------------------------------------------------------------------------
-add_executable(hospitalSim simpleHospitalSim.cpp HospitalSimApplication.cpp)
+add_executable(hospitalSim simpleHospitalSim.cpp HospitalSimApplication.cpp
+    HospitalUtils.cpp BaseClasses.cpp)
 target_link_libraries(hospitalSim PRIVATE DFRCore)
 ##add_test(NAME test_DFRApplication COMMAND test_DFRApplication)

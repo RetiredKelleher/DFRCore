@@ -46,5 +46,10 @@ int main() {
     // Simulation has completed at this point.
     std::string msg = "Simulation completed.";
     app.getLogger()->logInfo(msg);
+
+    // Display final statistics for all hospital services
+    app.displayFinalStatistics();
+
+    // End of simulation
     return 0;
 }

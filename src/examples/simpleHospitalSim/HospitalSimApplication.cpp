@@ -5,6 +5,10 @@
 #include <DFRCore/SimEngine.hpp>
 #include <DFRCore/Logger.hpp>
 #include <DFRCore/RandomNumber.hpp>
+
+#include "HospitalUtils.hpp"
+#include "ControlSwitches.hpp"
+
 #include <iostream>
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -104,9 +108,25 @@ unsigned int createPatientRepeatingEvent(HospitalSimApplication& theApp, double 
 HospitalSimApplication::HospitalSimApplication(bool inBatchMode)
     : DFR::Application(inBatchMode)
 {
+    // NOTE: Services created in the initialize method
+}
+
+HospitalSimApplication::~HospitalSimApplication()
+{
+    delete mAdminIntakeService;
+    delete mRecoveryRoomService;
+
+    // Release all the dynamically allocated patients
+    for (Patient* patient : mPatients) {
+        delete patient;
+    }
+    mPatients.clear(); // Clear the vector after deleting the patients
 }
 
 //! @brief Initialize the hospital simulation (OVERLOADED METHOD)
+//! @details This method initializes the hospital simulation, including (1) setting up the
+//! random number generator, (2) determining the simulation length, and (3) creating repeating
+//! events for patient polling.
 void HospitalSimApplication::initialize()
 {
     // Ensure the DFRCore application is initialized before performing local initialization.
@@ -118,25 +138,168 @@ void HospitalSimApplication::initialize()
 
     // KEY USAGE: Initialize Random Number Generator
     // NOTE: Initializing the random number generator with a fixed seed for reproducibility
-    unsigned int seed = 12345;
-    getRandomNumberGenerator()->setSeed(seed);
-    std::string msg = "Random number generator initialized with seed: " + std::to_string(seed);
-    getLogger()->logInfo(msg);
+    getRandomNumberGenerator()->setSeed(cSimulationRandomSeed);
+    std::string msg = "Random number generator initialized with seed: " + std::to_string(cSimulationRandomSeed);
+    logInfo(msg);
 
     // KEY USAGE: Determine the length of the simulation
     // NOTE: Implements a one-time event to stop the simulation after a certain simulation time
-    double simulationLength = 60.0; // Total length of the simulation in simulation time units
+    double simulationLength = cSimulationDuration; // Total length of the simulation in simulation time units
     createOneTimeStopEvent(*this, simulationLength, 1);  // Priority 1 (lowest-best)
+    msg = "One-time stop event created with simulation length: " + std::to_string(simulationLength);
+    logInfo(msg);
 
     // KEY USAGE: Determine the time increment for the repeating event for patients polling
     // NOTE: Implements a repeating event that occurs at regular intervals
-    double incrementTime = 5.0; // Time increment for the repeating event
-    unsigned int patientRepeatingEventID = createPatientRepeatingEvent(*this, 10.0, 1, incrementTime);
+    double incrementTime = cPatientInTakePollingInterval; // Time increment for the repeating event
+    unsigned int patientRepeatingEventID = createPatientRepeatingEvent(*this, cPatientInTakePollingInterval, 1, incrementTime);
+    msg = "Patient repeating event created with interval: " + std::to_string(cPatientInTakePollingInterval);
+    logInfo(msg);
+
+    //
+    // Create the Hospital Services
+    //
+    mRecoveryRoomService = new RecoveryRoomService(this);  //!< Initialize the post-operative care recovery room service.
+    mUrgentCareService = new UrgentCareService(this);  //!< Initialize the urgent care service.
+    mAdminIntakeService = new AdminIntakeService(this);  //!< Initialize the front desk administrative intake service.
 }
 
+//! @brief Log an informational message to the log file with a timestamp.
+//! @param[in] message The message to log
+void HospitalSimApplication::logInfo(const std::string& message)
+{
+    getLogger()->logInfo(message);
+}
+
+//! @brief Log a warning message to the log file with a timestamp.
+//! @param[in] message The message to log
+void HospitalSimApplication::logWarning(const std::string& message)
+{
+    getLogger()->logWarning(message);
+}
+
+//! @brief Log an error message to the log file with a timestamp.
+//! @param[in] message The message to log
+void HospitalSimApplication::logError(const std::string& message)
+{
+    getLogger()->logError(message);
+}
+
+//! @brief Inject a patient into the hospital simulation.
+//! @details This method handles the process of injecting a patient into the hospital simulation, including logging the action.
 void HospitalSimApplication::injectPatient()
 {
-    // Implementation for injecting a patient into the hospital simulation.
-    std::string msg = "Injecting a patient into the hospital simulation.";
+    // Determine if we CAN inject a new patient into the hospital simulation based on current conditions.
+    bool canInjectPatient = mAdminIntakeService->canProvideService();
+
+    // Generate a new patient and add it to the list of patients in the hospital simulation.
+    if (canInjectPatient)
+    {
+        Patient* newPatient = generatePatient();
+        mPatients.push_back(newPatient);
+
+        // Implementation for injecting a patient into the hospital simulation.
+        std::string msg = "Injecting a patient into the hospital simulation.";
+        logInfo(msg);
+
+        // Additional implementation for injecting a patient can be added here.
+        mAdminIntakeService->intakePatient(newPatient);
+        mTotalAcceptedPatients++;
+    }
+    else
+    {
+        mTotalRejectedPatients++;
+        std::string msg = "REJECT: Cannot inject a patient into the hospital simulation at this time.";
+        logInfo(msg);
+    }
+
+}
+
+//! @brief Can Discharge into Urgent Care.
+//! @param[in] patient The patient to check for discharge eligibility.
+//! @return True if the patient can be discharged into the urgent care, false otherwise.
+bool HospitalSimApplication::dischargeToUrgentCareIfPossible(Patient* patient)
+{
+    if (mUrgentCareService && mUrgentCareService->canProvideService())
+    {
+        mUrgentCareService->intakePatient(patient);
+        return true;
+    }
+    return false;
+}
+
+//! @brief Can Discharge into Recovery Room.
+//! @param[in] patient The patient to check for discharge eligibility.
+//! @return True if the patient can be discharged into the recovery room, false otherwise.
+bool HospitalSimApplication::dischargeToRecoveryRoomIfPossible(Patient* patient)
+{
+    if (mRecoveryRoomService && mRecoveryRoomService->canProvideService())
+    {
+        mRecoveryRoomService->intakePatient(patient);
+        return true;
+    }
+    return false;
+}
+
+//! @brief Discharge a patient from the hospital simulation.
+//! @param[in] patient The patient to discharge.
+void HospitalSimApplication::dischargePatient(Patient* patient)
+{
+    if (patient)
+    {
+        mTotalDischargedPatients++;
+        std::string msg = "Discharging a patient from the hospital simulation.";
+        logInfo(msg);
+        // Additional implementation for discharging a patient can be added here.
+    }
+}
+
+//! @brief Display final statistics for all hospital services.
+void HospitalSimApplication::displayFinalStatistics()
+{
+    std::string msg = "===============================";
     getLogger()->logInfo(msg);
+    msg = "Displaying final statistics for all hospital services.";
+    getLogger()->logInfo(msg);
+    msg = "Total Accepted Patients: " + std::to_string(mTotalAcceptedPatients);
+    getLogger()->logInfo(msg);
+    msg = "Total Rejected Patients: " + std::to_string(mTotalRejectedPatients);
+    getLogger()->logInfo(msg);
+    msg = "Total Discharged Patients: " + std::to_string(mTotalDischargedPatients);
+    getLogger()->logInfo(msg);
+    msg = "===============================";
+    getLogger()->logInfo(msg);
+
+    if (mAdminIntakeService)
+    {
+        mAdminIntakeService->displayFinalStatistics();
+    }
+    if (mUrgentCareService)
+    {
+        mUrgentCareService->displayFinalStatistics();
+    }
+    if (mRecoveryRoomService)
+    {
+        mRecoveryRoomService->displayFinalStatistics();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Protected Methods
+////////////////////////////////////////////////////////////////////////////////////////
+
+Patient* HospitalSimApplication::generatePatient()
+{
+    Patient* newPatient = new Patient();
+    newPatient->mID = int(mPatients.size());
+    newPatient->mIsIdle = true;  // Initialize the patient as idle
+
+    // Determine the types of mandatory service required by the patient
+    newPatient->mServiceRequired ^= int(Patient::ServiceType::eAdminIntake);  // All patients require admin intake
+    newPatient->mServiceRequired ^= int(Patient::ServiceType::eRecoveryRoom); // Some patients may require recovery room
+
+    // Determine the types of service required by the patient based on random selection
+    newPatient->mServiceRequired ^= int(Patient::ServiceType::eUrgentCare);   // Some patients may require urgent care
+
+    return newPatient;
 }
