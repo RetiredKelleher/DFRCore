@@ -81,17 +81,20 @@ unsigned int createPatientRepeatingEvent(HospitalSimApplication& theApp, double 
 
     auto repeatingEventFn = [&theApp, incrementTime](DFR::Event& event) {
         // Do Action!
-        double diceRoll = theApp.getRandomNumberGenerator()->getRandomDouble(0.0, 100.0);
-        bool addPatient = (diceRoll >= 50.0);
-        std::string msg = "Patient poll event: at simulation time: " + std::to_string(event.simTimeOfEvent()) + ", dice roll: " + std::to_string(diceRoll);
-        msg += (addPatient ? " - ADD patient" : " - NO patient added");
-        theApp.getLogger()->logInfo(msg);
+        // Stop if the maximum number of patients has been reached
+        if (theApp.getTotalAcceptedPatients() < cMaxPatientsInjected)
+        {
+            double diceRoll = theApp.getRandomNumberGenerator()->getRandomDouble(0.0, 100.0);
+            bool addPatient = (diceRoll >= 50.0);
+            std::string msg = "Patient poll event: at simulation time: " + std::to_string(event.simTimeOfEvent()) + ", dice roll: " + std::to_string(diceRoll);
+            msg += (addPatient ? " - ADD patient" : " - NO patient added");
+            theApp.getLogger()->logInfo(msg);
 
-        // Perform the action
-        if (addPatient) {
-            theApp.injectPatient();
+            // Perform the action
+            if (addPatient) {
+                theApp.injectPatient();
+            }
         }
-
         // Reschedule the event for future execution
         event.updateSimTime(event.simTimeOfEvent() + incrementTime); // Reschedule the event for a future time
         return DFR::Event::EventStatus::eReschedule; // Indicate that the event should be rescheduled
@@ -115,6 +118,8 @@ HospitalSimApplication::~HospitalSimApplication()
 {
     delete mAdminIntakeService;
     delete mRecoveryRoomService;
+    delete mUrgentCareService;
+    delete mBloodDrawService;
 
     // Release all the dynamically allocated patients
     for (Patient* patient : mPatients) {
@@ -162,6 +167,9 @@ void HospitalSimApplication::initialize()
     mRecoveryRoomService = new RecoveryRoomService(this);  //!< Initialize the post-operative care recovery room service.
     mUrgentCareService = new UrgentCareService(this);  //!< Initialize the urgent care service.
     mAdminIntakeService = new AdminIntakeService(this);  //!< Initialize the front desk administrative intake service.
+
+    // Sub-service for the hospital simulation
+    mBloodDrawService = new BloodDrawService(this);  //!< Initialize the blood draw service.
 }
 
 //! @brief Log an informational message to the log file with a timestamp.
@@ -254,6 +262,35 @@ void HospitalSimApplication::dischargePatient(Patient* patient)
     }
 }
 
+//! @brief Attempt to get sub-service Blood Draw if possible.
+//! @param[in] patient The patient to check for discharge eligibility.
+//! @return True if the patient can be discharged into the urgent care, false otherwise.
+bool HospitalSimApplication::performBloodDrawServiceIfPossible(Patient* patient)
+{
+    if (mBloodDrawService && mBloodDrawService->canProvideService())
+    {
+        mBloodDrawService->intakePatient(patient);
+        return true;
+    }
+    return false;
+}
+
+void HospitalSimApplication::subServiceCompletionNotification(Patient* patient)
+{
+    if (patient)
+    {
+        patient->mActiveSubService = false;  // Mark the patient as no longer undergoing a sub-service
+        std::string msg = "Sub-service completed for Patient ID(" + std::to_string(patient->mID) + ").";
+        logInfo(msg);
+
+        // Ask services to reevaluate the patient for discharge eligibility
+        if (mUrgentCareService)
+        {
+            mUrgentCareService->reevaluatePatientDischargeEligibility();
+        }
+    }
+}
+
 //! @brief Display final statistics for all hospital services.
 void HospitalSimApplication::displayFinalStatistics()
 {
@@ -278,6 +315,10 @@ void HospitalSimApplication::displayFinalStatistics()
     {
         mUrgentCareService->displayFinalStatistics();
     }
+    if (mBloodDrawService)
+    {
+        mBloodDrawService->displayFinalStatistics();
+    }
     if (mRecoveryRoomService)
     {
         mRecoveryRoomService->displayFinalStatistics();
@@ -300,6 +341,14 @@ Patient* HospitalSimApplication::generatePatient()
 
     // Determine the types of service required by the patient based on random selection
     newPatient->mServiceRequired ^= int(Patient::ServiceType::eUrgentCare);   // Some patients may require urgent care
+
+    double diceRoll{0};
+    // Determine OPTIONAL sub-service: Blood Draw
+    diceRoll = getRandomNumberGenerator()->getRandomDouble(0.0, 100.0);
+    if (diceRoll < cBloodDrawRandomChance) // cBloodDrawRandomChance% chance of requiring blood draw service
+    {
+        newPatient->mServiceRequired ^= int(Patient::ServiceType::eBloodDraw);
+    }
 
     return newPatient;
 }

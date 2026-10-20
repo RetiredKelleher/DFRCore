@@ -227,6 +227,9 @@ public:
     virtual void dischargePatient(Patient* patient) override;
     virtual void displayFinalStatistics(const int indentSpaces=0) override;
 
+    //! @brief Reevalute all patients discharge eligibility
+    void reevaluatePatientDischargeEligibility();
+    
 protected:
     //! @brief Attempt to discharge a patient into the next stage of care if possible, otherwise re-enqueue the patient into the serving queue.
     //! @return True if the patient can be discharged into the next stage of care, false otherwise.
@@ -235,10 +238,40 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
+//! @brief Model a Blood Draw department supporting the hospital.
+//! The concept is to have a department that can perform a task (blood draw) for patients.
+//! The department can support either Urgent Care OR Emergency Room patients.
+////////////////////////////////////////////////////////////////////////////////////////
+class BloodDrawService : public WorkerSupportedService
+{
+public:
+    BloodDrawService(HospitalSimApplication* app);
+    ~BloodDrawService() = default;
+
+    //! @brief Intake a patient.
+    //! @param[in] patient The patient to intake.
+    virtual void intakePatient(Patient* patient) override;
+
+    //! @brief Discharge a patient.
+    //! @param[in] patient The patient to discharge.
+    virtual void dischargePatient(Patient* patient) override;
+    
+    //! @brief Display final statistics for the admin intake service.
+    virtual void displayFinalStatistics(const int indentSpaces=0) override;
+
+protected:
+    //! @brief Attempt to discharge a patient into the next stage of care if possible, otherwise re-enqueue the patient into the serving queue.
+    //! @return True if the patient can be discharged into the next stage of care, false otherwise.
+    virtual bool attemptDischargeToNextStage(Patient* patient) override;
+
+};
+
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
 //! @brief Model the Front Desk Administrative Intake Service.
 //! The concept is to model the front desk administrative intake process for patients.
-//! Two queues are maintained: one for patients waiting to be checked in intaked and
-//! another for patients waiting to be served.
+//! A single queue is maintained for patients that represent lobby seating.
+//! Patients can either be waiting to be checked in or waiting for hospital service.
 ////////////////////////////////////////////////////////////////////////////////////////
 class AdminIntakeService : public WorkerSupportedService
 {

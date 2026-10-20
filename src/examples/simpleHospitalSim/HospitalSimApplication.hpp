@@ -1,4 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////
+// @file HospitalSimApplication.hpp
+// @brief Header file for the HospitalSimApplication class.
+// @details This file contains the declaration of the HospitalSimApplication class,
+// which is a derived class of DFR::Application. It provides the main application logic
+// for the simple hospital simulation.  The class manages the simulation of a hospital
+// environment, including patient intake, service provision, and discharge processes.
+// It also handles logging and random number generation for the simulation.
 ////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -10,6 +17,7 @@
 class AdminIntakeService;
 class UrgentCareService;
 class RecoveryRoomService;
+class BloodDrawService;
 class HospitalSimApplication : public DFR::Application
 {
 public:
@@ -34,6 +42,9 @@ public:
 
     /** @name Example Hospital Simulation Methods */
     //@{
+    //! @brief Total number of patients injected into the hospital simulation.
+    int getTotalAcceptedPatients() const { return mTotalAcceptedPatients; }
+
     //! @brief Inject a patient into the hospital simulation.
     void injectPatient();
 
@@ -49,6 +60,15 @@ public:
 
     //! @brief Discharge a patient from the hospital simulation.
     void dischargePatient(Patient* patient);
+
+    //! @brief Attempt to get sub-service Blood Draw if possible.
+    //! @param[in] patient The patient to check for discharge eligibility.
+    //! @return True if the patient can be discharged into the urgent care, false otherwise.
+    bool performBloodDrawServiceIfPossible(Patient* patient);
+
+    //! @brief Notification of sub-service completion for a patient.
+    //! @param[in] patient The patient for which the sub-service has been completed.
+    void subServiceCompletionNotification(Patient* patient);
     //@}
 
     //! @brief Display final statistics for all hospital services.
@@ -70,4 +90,5 @@ private:
     AdminIntakeService* mAdminIntakeService{nullptr};    //!< The front desk administrative intake service.
     UrgentCareService* mUrgentCareService{nullptr};    //!< The urgent care service.
     RecoveryRoomService* mRecoveryRoomService{nullptr};    //!< The post-operative care recovery room service.
+    BloodDrawService* mBloodDrawService{nullptr};    //!< The blood draw service.
 };

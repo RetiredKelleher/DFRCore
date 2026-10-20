@@ -242,7 +242,7 @@ void WorkerService::displayFinalStatistics(const int indentSpaces)
 {
     // Implement the logic to display final statistics for the worker service here
     std::string indent(indentSpaces, ' ');
-    std::string msg = indent + getWorkerServiceInfo() + " : Completed (Count/Time) = " +
+    std::string msg = indent + getWorkerServiceInfo() + " : Processed (Count/Time) = " +
      std::to_string(mStats.mServiceProcessed) + " / " + std::to_string(mStats.mTotalServiceTime);
     if (mCurrentPatient != nullptr)
     {
@@ -399,8 +399,9 @@ void WorkerSupportedService::performPatientCheckInProcess()
     if (mServingQueue->isEmpty())
         return;
 
-    // Implement the logic to check and assign a worker to a patient from the waiting queue if available.
-    // NOTE: All patients that need processing will be assigned to idle workers.
+    // Find all free workers and assign patients that can be served by the worker service.
+    // NOTE: We want to ensure the patient still holds a spot in the current serving queue,
+    //       so we will re-enqueue the patient back into the serving queue after intake.
     for (auto& worker : mWorkerService) {
         if (worker->canProvideService()) {
             Patient* patient = mServingQueue->dequeueWaitingPatientForService(mServiceTypeServed, true);
@@ -421,7 +422,7 @@ void WorkerSupportedService::performPatientCheckOutProcess()
     // Extracted patients from serving queue
     std::queue<Patient*> tempQueue;
 
-    // Process ALL patients that are idle and have completed the admin intake service.
+    // Process ALL patients that are idle and have completed the required service.
     while(true) {
         Patient* idlePatient = mServingQueue->dequeuePatientWithServiceCompleted(mServiceTypeServed, true);
         if (idlePatient == nullptr) {
@@ -433,11 +434,11 @@ void WorkerSupportedService::performPatientCheckOutProcess()
         logInfo(msg);
         if (attemptDischargeToNextStage(idlePatient)) {
             // Patient successfully discharged to recovery room.
-            std::string msg = mServiceName + ": Patient ID(" + std::to_string(idlePatient->mID) + ") discharged to recovery room.";
+            std::string msg = mServiceName + ": Patient ID(" + std::to_string(idlePatient->mID) + ") discharged to next stage.";
             logInfo(msg);
         } else {
-            // Handle the case where the patient cannot be discharged to the recovery room.
-            std::string msg = mServiceName + ": Patient ID(" + std::to_string(idlePatient->mID) + ") can NOT be discharged to recovery room.";
+            // Handle the case where the patient cannot be discharged to the next stage.
+            std::string msg = mServiceName + ": Patient ID(" + std::to_string(idlePatient->mID) + ") can NOT be discharged to next stage.";
             logInfo(msg);
             tempQueue.push(idlePatient);  // Temporarily store the idle patient for processing.
         }
@@ -467,10 +468,8 @@ RecoveryRoomService::RecoveryRoomService(HospitalSimApplication* app)
 
 void RecoveryRoomService::dischargePatient(Patient* patient)
 {
-#if 0    
-    // Implement the discharge logic for the recovery room service here
+    // Discharge patient from hospital simulation. 
     mApp->dischargePatient(patient);
-#endif    
 }
 
 void RecoveryRoomService::displayFinalStatistics(const int indentSpaces)
@@ -488,8 +487,8 @@ void RecoveryRoomService::displayFinalStatistics(const int indentSpaces)
 //! @return True if the patient can be discharged into the next stage of care, false otherwise.
 bool RecoveryRoomService::attemptDischargeToNextStage(Patient* patient)
 {
-    // Implement the discharge logic for the recovery room service here
-    mApp->dischargePatient(patient);
+    // Discharge this patient.
+    dischargePatient(patient);
     return true;  // Assuming the patient can always be discharged from the recovery room.
 }
 
@@ -510,15 +509,7 @@ UrgentCareService::UrgentCareService(HospitalSimApplication* app)
 
 void UrgentCareService::dischargePatient(Patient* patient)
 {
-#if 0    
-    // Implement the discharge logic here
-    for (auto& worker : mWorkerService) {
-        if (worker->mCurrentPatient == patient) {
-            mApp->dischargeToRecoveryRoomIfPossible(patient);
-            return;
-        }
-    }
-#endif    
+    // No action here - the discharge logic is handled in the attemptDischargeToNextStage method.
 }
 
 void UrgentCareService::displayFinalStatistics(const int indentSpaces)
@@ -532,11 +523,104 @@ void UrgentCareService::displayFinalStatistics(const int indentSpaces)
     WorkerSupportedService::displayFinalStatistics(indentSpaces + 2);
 }
 
+//! @brief Reevalute all patients discharge eligibility
+void UrgentCareService::reevaluatePatientDischargeEligibility()
+{
+    performPatientCheckOutProcess();  // Reevaluate all patients in the serving queue for discharge eligibility.
+    performPatientCheckInProcess();  // Reevaluate all patients in the serving queue for intake eligibility.
+}
+    
+
 //! @brief Attempt to discharge a patient into the next stage of care if possible, otherwise re-enqueue the patient into the serving queue.
 //! @return True if the patient can be discharged into the next stage of care, false otherwise.
 bool UrgentCareService::attemptDischargeToNextStage(Patient* patient)
 {
+    // Perform a sanity check to ensure the patient is not null.
+    if (patient == nullptr || patient->mActiveSubService)
+    {
+        return false;
+    }
+
+    // Does the patient need any sub-services (blood draw, x-ray, MRI, surgery, physical therapy) before discharge?
+    if ((patient->mServiceRequired & int(Patient::ServiceType::eAllServices)) != 0)
+    {
+        // Is Blood Draw service required? If so, attempt to provide it if possible.
+        if ((patient->mServiceRequired & int(Patient::ServiceType::eBloodDraw)) != 0)
+        {
+            if (mApp->performBloodDrawServiceIfPossible(patient))
+            {
+                std::string msg = mServiceName + ": Patient ID(" + std::to_string(patient->mID) + ") discharged to Blood Draw service.";
+                logInfo(msg);
+                return false;  // Patient still in Urgent Care, but removing sub-service task.
+            }
+        }
+
+        std::string msg = mServiceName + ": Patient ID(" + std::to_string(patient->mID) + ") still requires additional services before discharge.";
+        logInfo(msg);
+        return false;  // Patient still requires additional services, cannot discharge to next stage.
+    }
+
+    // Discharge MIGHT be possible based on Recovery Room availability.
+    // If not, the patient will be re-enqueued into the serving queue.
     return mApp->dischargeToRecoveryRoomIfPossible(patient);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// BloodDrawService - Blood Draw Service
+////////////////////////////////////////////////////////////////////////////////////////
+
+BloodDrawService::BloodDrawService(HospitalSimApplication* app)
+    : WorkerSupportedService(app)
+{
+    mServiceName = "BloodDrawService";
+
+    // Add workers to the Blood Draw service.
+    initWorkerQueue(Patient::ServiceType::eBloodDraw, cBloodDrawMinServiceTime,
+         cBloodDrawMaxServiceTime, cBloodDrawNumberOfWorkers, cBloodDrawLobbySize);
+}
+
+//! @brief Intake a patient.
+//! @param[in] patient The patient to intake.
+void BloodDrawService::intakePatient(Patient* patient)
+{
+    // Mark as active sub-service for the patient.
+    if (patient != nullptr)
+    {
+        patient->mActiveSubService = true;  // Mark the patient as undergoing a sub-service (blood draw).
+    }   
+    // Forward the intake to the base class to handle the queueing and worker assignment.
+    WorkerSupportedService::intakePatient(patient);
+}
+
+void BloodDrawService::dischargePatient(Patient* patient)
+{
+    // Notify of completion.
+    mApp->subServiceCompletionNotification(patient);  // Notify the application that the sub-service has been completed for the patient.
+}
+
+void BloodDrawService::displayFinalStatistics(const int indentSpaces)
+{
+    // Implement the logic to display final statistics for the blood draw service here
+    std::string indent(indentSpaces, ' ');
+    std::string msg = indent + "Final statistics for BloodDrawService:";
+    logInfo(msg);
+
+    // Ask subclass to display its own statistics
+    WorkerSupportedService::displayFinalStatistics(indentSpaces + 2);
+}
+//! @brief Attempt to discharge a patient into the next stage of care if possible, otherwise re-enqueue the patient into the serving queue.
+//! @return True if the patient can be discharged into the next stage of care, false otherwise.
+bool BloodDrawService::attemptDischargeToNextStage(Patient* patient)
+{
+    // Always succeed on discharge to the next stage of care for blood draw service.
+    // NOTE: The model does not own the patient's next stage of care.
+    // It will only remove the required sub-service for that patient.
+    if (patient != nullptr)
+        patient->mActiveSubService = false;  // Mark the patient as no longer undergoing a sub-service.
+
+    dischargePatient(patient);  // Notify of completion.
+    
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -572,7 +656,10 @@ void AdminIntakeService::displayFinalStatistics(const int indentSpaces)
 //! @return True if the patient can be discharged into the next stage of care, false otherwise.
 bool AdminIntakeService::attemptDischargeToNextStage(Patient* patient)
 {
-    // NOTE: recovery room for testing
+    // TODO - Determine if patient should go to Emergency room.
+
+    // Attempt to discharge the patient into the urgent care if possible.
+    // If not, the patient will be re-enqueued into the serving queue.
     return mApp->dischargeToUrgentCareIfPossible(patient);
 }
 

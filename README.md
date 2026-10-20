@@ -33,13 +33,29 @@ Create a list of future or currently broken items that needs to be addressed.
 
 ## How to Install / Build / Etc
 
+These steps are still in flux as I learn the best practices and how to implement them.  Currently, I've yet to create a simple install DEB file and place it in a registery.  However, building the source code can create that install package.  That's what I've been doing for my testing.
+
+### Package Installation
+
+The package installation process is still in flux.  This requires more learning on my end.
+
+    1. Download the package
+    2. Install the package: sudo apt install ./<packageName>
+
+### Source Package Usage
+
+This section describes how to get the software package for improvements or modifications.  All of these steps are used in my VSCode environment.  
+
 To download the software package, here are the steps.
 
     1. git clone https://github.com/RetiredKelleher/DFRCore.git
     2. cd DFRCore
     3. mkdir build
+    4. use the following command to configure the environment for VSCode
 
     cmake -DCMAKE_BUILD_TYPE:STRING=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++ -Wno-unused-cli -S . -B build -G "Unix Makefiles"
+
+    NOTE: I've only tested this with my VSCode environment.  Still needs testing on another system.
 
 Use this command to build all the sources
 
@@ -50,16 +66,6 @@ Use this command to clean all
     1. cmake --build build --config Debug --target clean
 
 NOTE: I'm still determining if all the config, build and clean commands require the DEBUG flag.
-
-### Package Installation
-
-    1. Download the package
-    2. Install the package: sudo apt install ./<packageName>
-
-### Source Package Usage
-
-This section describes how to get the software package for improvements or modifications.
-TODO...
 
 ## Back Story
 
